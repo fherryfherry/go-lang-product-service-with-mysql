@@ -1,4 +1,4 @@
-# Go Lang Product Service
+# Go Lang Product Service + MySQL (Raw Version)
 This project is sample to product service.
 
 Features :
