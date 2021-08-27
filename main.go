@@ -10,12 +10,12 @@ import (
 )
 
 type Product struct {
-	ID   int    `json:"id"`
-	Sku string `json:"sku"`
-	Name string `json:"name"`
-	Description string `json:"description"`
-	Stock int `json:"stock"`
-	Price float32 `json:"price"`
+	ID          int     `json:"id"`
+	Sku         string  `json:"sku"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	Stock       int     `json:"stock"`
+	Price       float32 `json:"price"`
 }
 
 type ApiResponse struct {
@@ -23,7 +23,7 @@ type ApiResponse struct {
 	Message string `json:"message"`
 }
 
-var products[] Product
+var products []Product
 var apiResponse ApiResponse
 
 func detailProduct(c *gin.Context) {
@@ -44,11 +44,11 @@ func detailProduct(c *gin.Context) {
 	var product Product
 	var id = c.Param("id")
 
-	err = db.QueryRow("SELECT id, sku, name, description, stock, price FROM products where id = ?", id).Scan(&product.ID,&product.Sku,&product.Name,&product.Description,&product.Stock,&product.Price)
+	err = db.QueryRow("SELECT id, sku, name, description, stock, price FROM products where id = ?", id).Scan(&product.ID, &product.Sku, &product.Name, &product.Description, &product.Stock, &product.Price)
 	if err != nil {
 		apiResponse.Status = 0
 		apiResponse.Message = err.Error()
-		c.IndentedJSON(http.StatusInternalServerError,apiResponse)
+		c.IndentedJSON(http.StatusInternalServerError, apiResponse)
 	} else {
 		c.IndentedJSON(http.StatusOK, product)
 	}
@@ -104,7 +104,7 @@ func createProduct(c *gin.Context) {
 
 	defer db.Close()
 
-	insert, err := db.Query("INSERT INTO products (sku,name,description,stock,price) values (?,?,?,?,?)", c.Param("sku"), c.Param("name"), c.Param("description"), c.Param("stock"), c.Param("price"))
+	insert, err := db.Query("INSERT INTO products (sku,name,description,stock,price) values (?,?,?,?,?)", c.PostForm("sku"), c.PostForm("name"), c.PostForm("description"), c.PostForm("stock"), c.PostForm("price"))
 
 	if err != nil {
 		apiResponse.Status = 0
@@ -120,13 +120,77 @@ func createProduct(c *gin.Context) {
 	c.IndentedJSON(http.StatusCreated, apiResponse)
 }
 
+func updateData(c *gin.Context) {
+	db, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/sample_shop")
+	if err != nil {
+		panic(err)
+	}
+	db.SetConnMaxLifetime(time.Minute * 3)
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(10)
+
+	if err != nil {
+		panic(err.Error())
+	}
+
+	defer db.Close()
+
+	update, err := db.Query("UPDATE products SET sku = ?, name = ?, description = ?, stock = ?, price = ? WHERE id = ?", c.PostForm("sku"), c.PostForm("name"), c.PostForm("description"), c.PostForm("stock"), c.PostForm("price"), c.PostForm("id"))
+
+	if err != nil {
+		apiResponse.Status = 0
+		apiResponse.Message = err.Error()
+		c.IndentedJSON(http.StatusInternalServerError, apiResponse)
+		return
+	}
+
+	defer update.Close()
+
+	apiResponse.Status = 1
+	apiResponse.Message = "Updated!"
+	c.IndentedJSON(http.StatusOK, apiResponse)
+}
+
+func deleteData(c *gin.Context) {
+	db, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/sample_shop")
+	if err != nil {
+		panic(err)
+	}
+	db.SetConnMaxLifetime(time.Minute * 3)
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(10)
+
+	if err != nil {
+		panic(err.Error())
+	}
+
+	defer db.Close()
+
+	deleteAction, err := db.Query("DELETE FROM products WHERE id = ?", c.PostForm("id"))
+
+	if err != nil {
+		apiResponse.Status = 0
+		apiResponse.Message = err.Error()
+		c.IndentedJSON(http.StatusInternalServerError, apiResponse)
+		return
+	}
+
+	defer deleteAction.Close()
+
+	apiResponse.Status = 1
+	apiResponse.Message = "Deleted!"
+	c.IndentedJSON(http.StatusOK, apiResponse)
+}
+
 func main() {
 	fmt.Println("Go Product Service MySQL RAW")
 
 	router := gin.Default()
 	router.GET("/products", listProduct)
 	router.GET("/products/detail/:id", detailProduct)
-	router.GET("/products/create", createProduct)
+	router.POST("/products/create", createProduct)
+	router.POST("/products/update", updateData)
+	router.POST("/products/delete", deleteData)
 
 	router.Run("localhost:8080")
 }
